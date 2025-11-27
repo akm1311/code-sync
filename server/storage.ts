@@ -50,7 +50,7 @@ export class MemStorage implements IStorage {
 
   async updateSharedCode(data: UpdateSharedCode): Promise<SharedCode | undefined> {
     const now = new Date();
-    
+
     if (this.sharedCodeData) {
       this.sharedCodeData.content = data.content ?? this.sharedCodeData.content;
       this.sharedCodeData.language = data.language ?? this.sharedCodeData.language;
@@ -63,21 +63,21 @@ export class MemStorage implements IStorage {
         updatedAt: now,
       };
     }
-    
+
     return this.sharedCodeData;
   }
 
   async createSharedCode(data: InsertSharedCode): Promise<SharedCode> {
     const id = randomUUID();
     const now = new Date();
-    
+
     const sharedCode: SharedCode = {
       id,
       content: data.content ?? "",
       language: data.language ?? "text",
       updatedAt: now,
     };
-    
+
     this.sharedCodeData = sharedCode;
     return sharedCode;
   }
@@ -96,7 +96,7 @@ export class MemStorage implements IStorage {
       fileSize: data.fileSize,
       uploadedAt: now,
     };
-    
+
     this.sharedFiles.set(id, sharedFile);
     return sharedFile;
   }
@@ -106,4 +106,73 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database Storage Implementation for Vercel
+import { db } from "./db.js";
+import { users as usersTable, sharedCode as sharedCodeTable, sharedFiles as sharedFilesTable } from "@shared/schema";
+import { eq } from "drizzle-orm";
+
+export class DbStorage implements IStorage {
+  async getUser(id: string): Promise<User | undefined> {
+    const result = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const result = await db.select().from(usersTable).where(eq(usersTable.username, username)).limit(1);
+    return result[0];
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const result = await db.insert(usersTable).values(insertUser).returning();
+    return result[0];
+  }
+
+  async getSharedCode(): Promise<SharedCode | undefined> {
+    const result = await db.select().from(sharedCodeTable).limit(1);
+    return result[0];
+  }
+
+  async updateSharedCode(data: UpdateSharedCode): Promise<SharedCode | undefined> {
+    // Get existing code first
+    const existing = await this.getSharedCode();
+
+    if (existing) {
+      // Update existing
+      const result = await db
+        .update(sharedCodeTable)
+        .set({
+          content: data.content ?? existing.content,
+          language: data.language ?? existing.language,
+          updatedAt: new Date(),
+        })
+        .where(eq(sharedCodeTable.id, existing.id))
+        .returning();
+      return result[0];
+    } else {
+      // Create new
+      return await this.createSharedCode(data);
+    }
+  }
+
+  async createSharedCode(data: InsertSharedCode): Promise<SharedCode> {
+    const result = await db.insert(sharedCodeTable).values(data).returning();
+    return result[0];
+  }
+
+  async getSharedFiles(): Promise<SharedFile[]> {
+    return await db.select().from(sharedFilesTable);
+  }
+
+  async createSharedFile(data: InsertSharedFile): Promise<SharedFile> {
+    const result = await db.insert(sharedFilesTable).values(data).returning();
+    return result[0];
+  }
+
+  async deleteSharedFile(id: string): Promise<boolean> {
+    const result = await db.delete(sharedFilesTable).where(eq(sharedFilesTable.id, id));
+    return true;
+  }
+}
+
+// Use database storage for Vercel (persistent across serverless calls)
+export const storage = new DbStorage();

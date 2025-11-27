@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage.js";
-import { updateSharedCodeSchema, insertSharedFileSchema } from "@shared/schema";
+import { updateSharedCodeSchema, insertSharedFileSchema } from "../shared/schema.js";
 import {
   ObjectStorageService,
   ObjectNotFoundError,
@@ -113,7 +113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Get the file metadata from storage
       const files = await storage.getSharedFiles();
-      const requestedPath = `/objects/${req.params.objectPath}`;
+      const requestedPath = `/ objects / ${req.params.objectPath} `;
       const file = files.find(f => f.objectPath === requestedPath || f.objectPath.endsWith(req.params.objectPath));
 
       if (!file) {

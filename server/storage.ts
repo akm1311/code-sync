@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import type { User, InsertUser, SharedCode, SharedFile, InsertSharedCode, UpdateSharedCode, InsertSharedFile } from "@shared/schema";
+import type { User, InsertUser, SharedCode, SharedFile, InsertSharedCode, UpdateSharedCode, InsertSharedFile } from "../shared/schema.js";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -108,7 +108,7 @@ export class MemStorage implements IStorage {
 
 // Database Storage Implementation for Vercel
 import { db } from "./db.js";
-import { users as usersTable, sharedCode as sharedCodeTable, sharedFiles as sharedFilesTable } from "@shared/schema";
+import { users as usersTable, sharedCode as sharedCodeTable, sharedFiles as sharedFilesTable } from "../shared/schema.js";
 import { eq } from "drizzle-orm";
 
 export class DbStorage implements IStorage {

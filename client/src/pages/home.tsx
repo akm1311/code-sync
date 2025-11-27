@@ -146,8 +146,6 @@ export default function Home() {
         const blob = await upload(file.name, file, {
           access: 'public',
           handleUploadUrl: '/api/upload/token',
-          // @ts-ignore - Option exists in API but missing in type definition
-          addRandomSuffix: true, // Ensure unique filename to avoid "Blob already exists" error
         });
         uploadURL = blob.url;
         pathname = blob.pathname;

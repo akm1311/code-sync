@@ -77,6 +77,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             tokenPayload: JSON.stringify({
               // optional, sent to your server on upload completion
             }),
+            addRandomSuffix: true,
           };
         },
         onUploadCompleted: async ({ blob, tokenPayload }) => {

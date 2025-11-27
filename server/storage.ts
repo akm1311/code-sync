@@ -106,73 +106,132 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Database Storage Implementation for Vercel
-import { db } from "./db.js";
-import { users as usersTable, sharedCode as sharedCodeTable, sharedFiles as sharedFilesTable } from "../shared/schema.js";
-import { eq } from "drizzle-orm";
+// Blob-based Storage Implementation for Vercel (no database needed!)
+import { put, head, del } from '@vercel/blob';
 
-export class DbStorage implements IStorage {
-  async getUser(id: string): Promise<User | undefined> {
-    const result = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
-    return result[0];
-  }
+export class BlobStorage implements IStorage {
+  private readonly SHARED_CODE_KEY = 'shared-code.json';
+  private readonly SHARED_FILES_KEY = 'shared-files.json';
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await db.select().from(usersTable).where(eq(usersTable.username, username)).limit(1);
-    return result[0];
-  }
+  private async readBlobJSON<T>(key: string, defaultValue: T): Promise<T> {
+    try {
+      if (!process.env.BLOB_READ_WRITE_TOKEN) {
+        // Local dev fallback
+        return defaultValue;
+      }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const result = await db.insert(usersTable).values(insertUser).returning();
-    return result[0];
-  }
+      const response = await fetch(`https://blob.vercel-storage.com/${key}`, {
+        headers: {
+          'authorization': `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
+        },
+      });
 
-  async getSharedCode(): Promise<SharedCode | undefined> {
-    const result = await db.select().from(sharedCodeTable).limit(1);
-    return result[0];
-  }
+      if (!response.ok) {
+        return defaultValue;
+      }
 
-  async updateSharedCode(data: UpdateSharedCode): Promise<SharedCode | undefined> {
-    // Get existing code first
-    const existing = await this.getSharedCode();
-
-    if (existing) {
-      // Update existing
-      const result = await db
-        .update(sharedCodeTable)
-        .set({
-          content: data.content ?? existing.content,
-          language: data.language ?? existing.language,
-          updatedAt: new Date(),
-        })
-        .where(eq(sharedCodeTable.id, existing.id))
-        .returning();
-      return result[0];
-    } else {
-      // Create new
-      return await this.createSharedCode(data);
+      return await response.json();
+    } catch {
+      return defaultValue;
     }
   }
 
+  private async writeBlobJSON<T>(key: string, data: T): Promise<void> {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return; // Local dev - skip writing
+    }
+
+    const jsonString = JSON.stringify(data);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+
+    await put(key, blob, {
+      access: 'public',
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
+  }
+
+  async getUser(id: string): Promise<User | undefined> {
+    const users = await this.readBlobJSON<Record<string, User>>('users.json', {});
+    return users[id];
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const users = await this.readBlobJSON<Record<string, User>>('users.json', {});
+    return Object.values(users).find((user) => user.username === username);
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const users = await this.readBlobJSON<Record<string, User>>('users.json', {});
+    const id = randomUUID();
+    const user: User = { ...insertUser, id };
+    users[id] = user;
+    await this.writeBlobJSON('users.json', users);
+    return user;
+  }
+
+  async getSharedCode(): Promise<SharedCode | undefined> {
+    return await this.readBlobJSON<SharedCode | undefined>(this.SHARED_CODE_KEY, undefined);
+  }
+
+  async updateSharedCode(data: UpdateSharedCode): Promise<SharedCode | undefined> {
+    const existing = await this.getSharedCode();
+
+    const updated: SharedCode = existing
+      ? {
+        ...existing,
+        content: data.content ?? existing.content,
+        language: data.language ?? existing.language,
+        updatedAt: new Date(),
+      }
+      : {
+        id: randomUUID(),
+        content: data.content || "",
+        language: data.language || "text",
+        updatedAt: new Date(),
+      };
+
+    await this.writeBlobJSON(this.SHARED_CODE_KEY, updated);
+    return updated;
+  }
+
   async createSharedCode(data: InsertSharedCode): Promise<SharedCode> {
-    const result = await db.insert(sharedCodeTable).values(data).returning();
-    return result[0];
+    const sharedCode: SharedCode = {
+      id: randomUUID(),
+      content: data.content,
+      language: data.language,
+      updatedAt: new Date(),
+    };
+    await this.writeBlobJSON(this.SHARED_CODE_KEY, sharedCode);
+    return sharedCode;
   }
 
   async getSharedFiles(): Promise<SharedFile[]> {
-    return await db.select().from(sharedFilesTable);
+    const files = await this.readBlobJSON<Record<string, SharedFile>>(this.SHARED_FILES_KEY, {});
+    return Object.values(files);
   }
 
   async createSharedFile(data: InsertSharedFile): Promise<SharedFile> {
-    const result = await db.insert(sharedFilesTable).values(data).returning();
-    return result[0];
+    const files = await this.readBlobJSON<Record<string, SharedFile>>(this.SHARED_FILES_KEY, {});
+    const id = randomUUID();
+    const file: SharedFile = {
+      id,
+      filename: data.filename,
+      objectPath: data.objectPath,
+      fileSize: data.fileSize,
+      uploadedAt: new Date(),
+    };
+    files[id] = file;
+    await this.writeBlobJSON(this.SHARED_FILES_KEY, files);
+    return file;
   }
 
   async deleteSharedFile(id: string): Promise<boolean> {
-    const result = await db.delete(sharedFilesTable).where(eq(sharedFilesTable.id, id));
+    const files = await this.readBlobJSON<Record<string, SharedFile>>(this.SHARED_FILES_KEY, {});
+    delete files[id];
+    await this.writeBlobJSON(this.SHARED_FILES_KEY, files);
     return true;
   }
 }
 
-// Use database storage for Vercel (persistent across serverless calls)
-export const storage = new DbStorage();
+// Use blob storage - no database needed!
+export const storage = new BlobStorage();

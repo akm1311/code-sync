@@ -65,33 +65,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Handle Vercel Blob client upload handshake
   app.post("/api/upload/token", async (req, res) => {
+    console.log('[TOKEN] Request received for upload token');
+
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      console.error('[TOKEN] BLOB_READ_WRITE_TOKEN not set');
+      return res.status(500).json({ error: 'Blob storage not configured' });
+    }
+
     const body = req.body as HandleUploadBody;
+    console.log('[TOKEN] Request body:', JSON.stringify(body, null, 2));
 
     try {
       const jsonResponse = await handleUpload({
         body,
         request: req,
         onBeforeGenerateToken: async (pathname, clientPayload) => {
+          console.log('[TOKEN] Generating token for pathname:', pathname);
           // Allow all content types by not restricting them
           return {
-            tokenPayload: JSON.stringify({
-              // optional, sent to your server on upload completion
-            }),
             addRandomSuffix: true,
           };
         },
         onUploadCompleted: async ({ blob, tokenPayload }) => {
           // Optional: verify upload or do post-processing
-          console.log('Blob upload completed:', blob.url);
+          console.log('[TOKEN] Blob upload completed:', blob.url);
         },
       });
 
+      console.log('[TOKEN] Token generated successfully');
       res.json(jsonResponse);
     } catch (error) {
-      console.error("Error handling upload token:", error);
-      res.status(400).json(
-        { error: (error as Error).message }
-      );
+      console.error("[TOKEN] Error in upload token generation:", error);
+      res.status(400).json({ error: "Token generation failed", details: error instanceof Error ? error.message : String(error) });
     }
   });
 

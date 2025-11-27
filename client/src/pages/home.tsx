@@ -134,22 +134,32 @@ export default function Home() {
   // File upload handler
   const handleFileUpload = async (file: File) => {
     try {
+      console.log('[UPLOAD] Starting upload for:', file.name, 'Size:', file.size);
+
       // Check upload config
       const configRes = await apiRequest("GET", "/api/upload/config");
       const config = await configRes.json();
+      console.log('[UPLOAD] Config received:', config);
 
       let uploadURL = "";
       let pathname = "";
 
       if (config.isVercelBlob) {
-        // Client-side upload to Vercel Blob
-        const blob = await upload(file.name, file, {
-          access: 'public',
-          handleUploadUrl: '/api/upload/token',
-        });
-        uploadURL = blob.url;
-        pathname = blob.pathname;
+        console.log('[UPLOAD] Using Vercel Blob client-side upload');
+        try {
+          const blob = await upload(file.name, file, {
+            access: 'public',
+            handleUploadUrl: '/api/upload/token',
+          });
+          console.log('[UPLOAD] Blob upload successful:', blob);
+          uploadURL = blob.url;
+          pathname = blob.pathname;
+        } catch (blobError) {
+          console.error('[UPLOAD] Blob upload failed, falling back to server upload:', blobError);
+          throw blobError; // Re-throw to use the main error handler
+        }
       } else {
+        console.log('[UPLOAD] Using server-side upload (local mode)');
         // Local fallback (server-side upload)
         const reader = new FileReader();
         const base64Promise = new Promise<string>((resolve, reject) => {

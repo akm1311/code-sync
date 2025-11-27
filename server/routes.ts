@@ -47,11 +47,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get shared files
   app.get("/api/files", async (req, res) => {
+    console.log('[GET FILES] Fetching shared files list...');
     try {
       const files = await storage.getSharedFiles();
+      console.log('[GET FILES] Retrieved', files.length, 'files');
+      console.log('[GET FILES] File IDs:', files.map(f => f.id));
       res.json(files);
     } catch (error) {
-      console.error("Error fetching shared files:", error);
+      console.error("[GET FILES] Error fetching shared files:", error);
       res.status(500).json({ message: "Failed to fetch shared files" });
     }
   });

@@ -237,8 +237,12 @@ export class BlobStorage implements IStorage {
   }
 
   async getSharedFiles(): Promise<SharedFile[]> {
-    const files = await this.readBlobJSON<Record<string, SharedFile>>(this.SHARED_FILES_KEY, {});
-    return Object.values(files);
+    console.log('[STORAGE] Getting shared files from blob...');
+    const data = await this.readBlobJSON<Record<string, SharedFile>>(this.SHARED_FILES_KEY, {});
+    console.log('[STORAGE] Raw blob data keys:', Object.keys(data));
+    const files = Object.values(data);
+    console.log('[STORAGE] Returning', files.length, 'files');
+    return files;
   }
 
   async createSharedFile(data: InsertSharedFile): Promise<SharedFile> {

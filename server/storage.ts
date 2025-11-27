@@ -197,8 +197,8 @@ export class BlobStorage implements IStorage {
   async createSharedCode(data: InsertSharedCode): Promise<SharedCode> {
     const sharedCode: SharedCode = {
       id: randomUUID(),
-      content: data.content,
-      language: data.language,
+      content: data.content ?? "",
+      language: data.language ?? "text",
       updatedAt: new Date(),
     };
     await this.writeBlobJSON(this.SHARED_CODE_KEY, sharedCode);
@@ -233,5 +233,5 @@ export class BlobStorage implements IStorage {
   }
 }
 
-// Use blob storage - no database needed!
-export const storage = new BlobStorage();
+// Use blob storage if token is present, otherwise fallback to memory storage
+export const storage = process.env.BLOB_READ_WRITE_TOKEN ? new BlobStorage() : new MemStorage();

@@ -13,7 +13,7 @@ interface SimpleFileUploaderProps {
 
 export function SimpleFileUploader({
     onUpload,
-    accept = ".zip,.tar,.gz,.7z,.rar",
+    accept,
     maxSize = 50 * 1024 * 1024, // 50MB default
     buttonText = "Upload File",
     className = "",

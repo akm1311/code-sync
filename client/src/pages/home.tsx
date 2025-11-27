@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useTheme } from "@/components/theme-provider";
@@ -39,6 +39,7 @@ export default function Home() {
   const [language, setLanguage] = useState("text");
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const lastEditTime = useRef(0);
 
   // Fetch shared code
   const { data: sharedCode, isLoading: isFetching } = useQuery<SharedCode>({
@@ -55,11 +56,14 @@ export default function Home() {
   // Update content and language when shared code changes (but not during typing)
   useEffect(() => {
     if (sharedCode && !isLoading) {
-      if (sharedCode.content !== content) {
-        setContent(sharedCode.content);
-      }
-      if (sharedCode.language !== language) {
-        setLanguage(sharedCode.language);
+      const timeSinceLastEdit = Date.now() - lastEditTime.current;
+      if (timeSinceLastEdit > 2000) { // Only update if user hasn't typed for 2 seconds
+        if (sharedCode.content !== content) {
+          setContent(sharedCode.content);
+        }
+        if (sharedCode.language !== language) {
+          setLanguage(sharedCode.language);
+        }
       }
     }
   }, [sharedCode, isLoading]);
@@ -341,7 +345,10 @@ export default function Home() {
               <div className="relative">
                 <Textarea
                   value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                  onChange={(e) => {
+                    setContent(e.target.value);
+                    lastEditTime.current = Date.now();
+                  }}
                   placeholder="✍️ Start typing your code here... Changes save automatically in real-time!"
                   className="min-h-96 p-6 bg-transparent text-slate-900 dark:text-slate-100 font-mono text-sm leading-relaxed resize-none border-0 focus-visible:ring-0 placeholder-slate-400 dark:placeholder-slate-500"
                   data-testid="textarea-code"

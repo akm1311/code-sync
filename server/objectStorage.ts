@@ -1,6 +1,13 @@
 import { put, del, head } from '@vercel/blob';
 import { Response } from "express";
 import { randomUUID } from "crypto";
+import fs from 'fs';
+import path from 'path';
+import { promisify } from 'util';
+
+const writeFile = promisify(fs.writeFile);
+const unlink = promisify(fs.unlink);
+const mkdir = promisify(fs.mkdir);
 
 export class ObjectNotFoundError extends Error {
   constructor() {
@@ -11,7 +18,15 @@ export class ObjectNotFoundError extends Error {
 }
 
 export class ObjectStorageService {
-  constructor() { }
+  private uploadDir: string;
+
+  constructor() {
+    this.uploadDir = path.join(process.cwd(), 'uploads');
+    // Ensure upload directory exists
+    if (!fs.existsSync(this.uploadDir)) {
+      fs.mkdirSync(this.uploadDir, { recursive: true });
+    }
+  }
 
   // Gets the upload URL for an object entity
   async getObjectEntityUploadURL(): Promise<string> {
@@ -21,12 +36,20 @@ export class ObjectStorageService {
     return `/api/files/upload/${objectId}`;
   }
 
-  // Upload file to Vercel Blob
+  // Upload file to Vercel Blob or local storage
   async uploadFile(filename: string, fileBuffer: Buffer): Promise<{ url: string; pathname: string }> {
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      throw new Error(
-        "BLOB_READ_WRITE_TOKEN not set. This is auto-provided by Vercel when you deploy."
-      );
+      // Local fallback
+      const uniqueFilename = `${Date.now()}-${filename}`;
+      const filePath = path.join(this.uploadDir, uniqueFilename);
+
+      await writeFile(filePath, fileBuffer);
+
+      const url = `/uploads/${uniqueFilename}`;
+      return {
+        url: url,
+        pathname: uniqueFilename
+      };
     }
 
     const blob = await put(filename, fileBuffer, {
@@ -40,9 +63,22 @@ export class ObjectStorageService {
     };
   }
 
-  // Download object from Vercel Blob
+  // Download object from Vercel Blob or local storage
   async downloadObject(blobUrl: string, res: Response) {
     try {
+      // Check if it's a local file
+      if (blobUrl.startsWith('/uploads/')) {
+        const filename = blobUrl.split('/uploads/')[1];
+        const filePath = path.join(this.uploadDir, filename);
+
+        if (!fs.existsSync(filePath)) {
+          throw new ObjectNotFoundError();
+        }
+
+        res.download(filePath);
+        return;
+      }
+
       // Fetch the blob content
       const response = await fetch(blobUrl);
 
@@ -65,13 +101,30 @@ export class ObjectStorageService {
     } catch (error) {
       console.error("Error downloading file:", error);
       if (!res.headersSent) {
-        res.status(500).json({ error: "Error downloading file" });
+        if (error instanceof ObjectNotFoundError) {
+          res.status(404).json({ error: "File not found" });
+        } else {
+          res.status(500).json({ error: "Error downloading file" });
+        }
       }
     }
   }
 
-  // Delete file from Vercel Blob
+  // Delete file from Vercel Blob or local storage
   async deleteFile(blobUrl: string): Promise<void> {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      // Local fallback
+      if (blobUrl.startsWith('/uploads/')) {
+        const filename = blobUrl.split('/uploads/')[1];
+        const filePath = path.join(this.uploadDir, filename);
+
+        if (fs.existsSync(filePath)) {
+          await unlink(filePath);
+        }
+        return;
+      }
+    }
+
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
       throw new Error("BLOB_READ_WRITE_TOKEN not set");
     }
@@ -85,6 +138,11 @@ export class ObjectStorageService {
   normalizeObjectEntityPath(rawPath: string): string {
     // If it's already a Vercel Blob URL, return as-is
     if (rawPath.startsWith('https://')) {
+      return rawPath;
+    }
+
+    // If it's a local upload path, return as-is
+    if (rawPath.startsWith('/uploads/')) {
       return rawPath;
     }
 

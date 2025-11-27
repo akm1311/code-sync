@@ -22,9 +22,11 @@ export class ObjectStorageService {
 
   constructor() {
     this.uploadDir = path.join(process.cwd(), 'uploads');
-    // Ensure upload directory exists
-    if (!fs.existsSync(this.uploadDir)) {
-      fs.mkdirSync(this.uploadDir, { recursive: true });
+    // Only create upload directory if Vercel Blob is not configured (local development)
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      if (!fs.existsSync(this.uploadDir)) {
+        fs.mkdirSync(this.uploadDir, { recursive: true });
+      }
     }
   }
 

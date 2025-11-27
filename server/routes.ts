@@ -137,7 +137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "fileURL, filename, and fileSize are required" });
       }
 
-      const objectStorageService = new ObjectStorageService();
+      // fileURL is already the complete Vercel Blob URL or local path
       const objectPath = req.body.fileURL;
 
       const validatedData = insertSharedFileSchema.parse({

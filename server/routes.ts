@@ -130,8 +130,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Save file metadata after upload
   app.post("/api/files", async (req, res) => {
+    console.log('[FILES] Saving file metadata request:', JSON.stringify(req.body, null, 2));
     try {
       if (!req.body.fileURL || !req.body.filename || !req.body.fileSize) {
+        console.log('[FILES] Missing required fields');
         return res.status(400).json({ error: "fileURL, filename, and fileSize are required" });
       }
 
@@ -144,11 +146,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileSize: req.body.fileSize.toString(),
       });
 
+      console.log('[FILES] Calling createSharedFile with:', JSON.stringify(validatedData, null, 2));
       const savedFile = await storage.createSharedFile(validatedData);
+      console.log('[FILES] File metadata saved successfully. ID:', savedFile.id);
       res.json(savedFile);
     } catch (error) {
-      console.error("Error saving file metadata:", error);
-      res.status(500).json({ message: "Failed to save file" });
+      console.error("[FILES] Error creating shared file metadata:", error);
+      console.error("[FILES] Error details:", {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack',
+      });
+      res.status(500).json({
+        message: "Failed to save file",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

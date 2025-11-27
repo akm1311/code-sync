@@ -38,7 +38,7 @@ export default function Home() {
   const [content, setContent] = useState("");
   const [language, setLanguage] = useState("text");
   const [copied, setCopied] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  // const [isLoading, setIsLoading] = useState(false); // Removed manual loading state
   const lastEditTime = useRef(0);
 
   // Fetch shared code
@@ -55,9 +55,13 @@ export default function Home() {
 
   // Update content and language when shared code changes (but not during typing)
   useEffect(() => {
-    if (sharedCode && !isLoading) {
+    if (sharedCode) {
       const timeSinceLastEdit = Date.now() - lastEditTime.current;
-      if (timeSinceLastEdit > 2000) { // Only update if user hasn't typed for 2 seconds
+      // Only update if user hasn't typed for 2 seconds AND server version is newer
+      // We assume server time is roughly synced or at least monotonic for our purposes
+      const serverTime = new Date(sharedCode.updatedAt).getTime();
+
+      if (timeSinceLastEdit > 2000 && serverTime > lastEditTime.current) {
         if (sharedCode.content !== content) {
           setContent(sharedCode.content);
         }
@@ -66,7 +70,7 @@ export default function Home() {
         }
       }
     }
-  }, [sharedCode, isLoading]);
+  }, [sharedCode]);
 
   // Update shared code mutation
   const updateCodeMutation = useMutation({
@@ -87,12 +91,13 @@ export default function Home() {
   });
 
   // Debounced content update
+  // Debounced content update
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (sharedCode && (content !== sharedCode.content || language !== sharedCode.language)) {
-        setIsLoading(true);
+        // setIsLoading(true); // Removed
         updateCodeMutation.mutate({ content, language });
-        setTimeout(() => setIsLoading(false), 500);
+        // setTimeout(() => setIsLoading(false), 500); // Removed
       }
     }, 1000);
 
@@ -169,7 +174,9 @@ export default function Home() {
       console.error("Upload error:", error);
       toast({
         title: "❌ Upload Failed",
-        description: "Could not upload file. Please try again.",
+        description: error instanceof Error && error.message.includes("413")
+          ? "File too large. Please upload files smaller than 50MB."
+          : "Could not upload file. Please try again.",
         variant: "destructive",
       });
     }
@@ -355,7 +362,7 @@ export default function Home() {
                 />
 
                 {/* Loading Overlay */}
-                {(isLoading || isFetching) && (
+                {(updateCodeMutation.isPending || isFetching) && (
                   <div className="absolute inset-0 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm flex items-center justify-center">
                     <div className="flex items-center space-x-3 bg-white dark:bg-slate-800 px-4 py-3 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
                       <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
@@ -388,7 +395,7 @@ export default function Home() {
                     />
 
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      💡 Tip: Upload archives (.zip, .tar, .gz, .7z, .rar) to share multiple files at once
+                      💡 Tip: You can upload any file type (images, documents, archives, etc.)
                     </p>
                   </div>
                 </div>

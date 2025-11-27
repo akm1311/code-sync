@@ -6,6 +6,7 @@ import {
   ObjectStorageService,
   ObjectNotFoundError,
 } from "./objectStorage.js";
+import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get shared code
@@ -55,7 +56,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Upload file - direct upload
+  // Check upload configuration (Vercel Blob vs Local)
+  app.get("/api/upload/config", (req, res) => {
+    res.json({
+      isVercelBlob: !!process.env.BLOB_READ_WRITE_TOKEN
+    });
+  });
+
+  // Handle Vercel Blob client upload handshake
+  app.post("/api/upload/token", async (req, res) => {
+    const body = req.body as HandleUploadBody;
+
+    try {
+      const jsonResponse = await handleUpload({
+        body,
+        request: req,
+        onBeforeGenerateToken: async (pathname, clientPayload) => {
+          // You can add authentication checks here
+          return {
+            allowedContentTypes: ['image/jpeg', 'image/png', 'image/gif', 'text/plain', 'application/pdf', 'application/zip', 'application/x-zip-compressed', 'multipart/x-zip'], // We can be more permissive or specific
+            tokenPayload: JSON.stringify({
+              // optional, sent to your server on upload completion
+            }),
+          };
+        },
+        onUploadCompleted: async ({ blob, tokenPayload }) => {
+          // Optional: verify upload or do post-processing
+          console.log('Blob upload completed:', blob.url);
+        },
+      });
+
+      res.json(jsonResponse);
+    } catch (error) {
+      console.error("Error handling upload token:", error);
+      res.status(400).json(
+        { error: (error as Error).message }
+      );
+    }
+  });
+
+  // Upload file - direct upload (Legacy/Local fallback)
   app.post("/api/files/upload", async (req, res) => {
     try {
       const { filename, file } = req.body;

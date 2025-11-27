@@ -29,6 +29,7 @@ import {
   Trash2,
   File
 } from "lucide-react";
+import { upload } from "@vercel/blob/client";
 import type { SharedCode, SharedFile } from "@shared/schema";
 
 export default function Home() {
@@ -133,32 +134,49 @@ export default function Home() {
   // File upload handler
   const handleFileUpload = async (file: File) => {
     try {
-      // Convert file to base64
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve, reject) => {
-        reader.onload = () => {
-          const base64 = reader.result as string;
-          // Remove data:*/*;base64, prefix
-          const base64Data = base64.split(',')[1];
-          resolve(base64Data);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      // Check upload config
+      const configRes = await apiRequest("GET", "/api/upload/config");
+      const config = await configRes.json();
 
-      const base64Data = await base64Promise;
+      let uploadURL = "";
+      let pathname = "";
 
-      // Upload to server
-      const response = await apiRequest("POST", "/api/files/upload", {
-        filename: file.name,
-        file: base64Data,
-      });
+      if (config.isVercelBlob) {
+        // Client-side upload to Vercel Blob
+        const blob = await upload(file.name, file, {
+          access: 'public',
+          handleUploadUrl: '/api/upload/token',
+        });
+        uploadURL = blob.url;
+        pathname = blob.pathname;
+      } else {
+        // Local fallback (server-side upload)
+        const reader = new FileReader();
+        const base64Promise = new Promise<string>((resolve, reject) => {
+          reader.onload = () => {
+            const base64 = reader.result as string;
+            const base64Data = base64.split(',')[1];
+            resolve(base64Data);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
 
-      const data = await response.json();
+        const base64Data = await base64Promise;
+
+        const response = await apiRequest("POST", "/api/files/upload", {
+          filename: file.name,
+          file: base64Data,
+        });
+
+        const data = await response.json();
+        uploadURL = data.uploadURL;
+        pathname = data.pathname;
+      }
 
       // Save file metadata
       await apiRequest("POST", "/api/files", {
-        fileURL: data.uploadURL,
+        fileURL: uploadURL,
         filename: file.name,
         fileSize: file.size,
       });

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "../server/routes";
+import { registerRoutes } from "../server/routes.js";
 
 // Create Express app
 const app = express();
@@ -51,7 +51,7 @@ async function ensureRoutes() {
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const status = err.status || err.statusCode || 500;
   const message = err.message || "Internal Server Error";
-  
+
   console.error('API Error:', err);
   res.status(status).json({ message });
 });
@@ -59,7 +59,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 // Vercel serverless function handler
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   await ensureRoutes();
-  
+
   // Convert VercelRequest/Response to Express format
   return new Promise((resolve, reject) => {
     app(req as any, res as any, (err?: any) => {

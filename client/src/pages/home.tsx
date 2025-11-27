@@ -9,15 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ObjectUploader } from "@/components/ObjectUploader";
-import { 
-  Code, 
-  Copy, 
-  Check, 
-  Moon, 
-  Sun, 
-  RefreshCw, 
-  Wifi, 
+import { SimpleFileUploader } from "@/components/SimpleFileUploader";
+import {
+  Code,
+  Copy,
+  Check,
+  Moon,
+  Sun,
+  RefreshCw,
+  Wifi,
   Clock,
   Info,
   Zap,
@@ -30,7 +30,6 @@ import {
   File
 } from "lucide-react";
 import type { SharedCode, SharedFile } from "@shared/schema";
-import type { UploadResult } from "@uppy/core";
 
 export default function Home() {
   const { theme, toggleTheme } = useTheme();
@@ -53,13 +52,17 @@ export default function Home() {
     refetchInterval: 5000, // Poll every 5 seconds for files
   });
 
-  // Update content and language when shared code changes
+  // Update content and language when shared code changes (but not during typing)
   useEffect(() => {
-    if (sharedCode && (sharedCode.content !== content || sharedCode.language !== language)) {
-      setContent(sharedCode.content);
-      setLanguage(sharedCode.language);
+    if (sharedCode && !isLoading) {
+      if (sharedCode.content !== content) {
+        setContent(sharedCode.content);
+      }
+      if (sharedCode.language !== language) {
+        setLanguage(sharedCode.language);
+      }
     }
-  }, [sharedCode]);
+  }, [sharedCode, isLoading]);
 
   // Update shared code mutation
   const updateCodeMutation = useMutation({
@@ -118,41 +121,53 @@ export default function Home() {
     });
   };
 
-  // File upload handlers
-  const handleGetUploadParameters = async () => {
-    const response = await apiRequest("POST", "/api/files/upload", {});
-    const data = await response.json();
-    return {
-      method: "PUT" as const,
-      url: data.uploadURL,
-    };
-  };
+  // File upload handler
+  const handleFileUpload = async (file: File) => {
+    try {
+      // Convert file to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const base64 = reader.result as string;
+          // Remove data:*/*;base64, prefix
+          const base64Data = base64.split(',')[1];
+          resolve(base64Data);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
 
-  const handleFileUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    const successful = result.successful?.[0];
-    if (successful && successful.uploadURL) {
-      try {
-        await apiRequest("POST", "/api/files", {
-          fileURL: successful.uploadURL,
-          filename: successful.name,
-          fileSize: successful.size,
-        });
-        
-        // Refresh files list
-        queryClient.invalidateQueries({ queryKey: ["/api/files"] });
-        
-        toast({
-          title: "Upload Complete",
-          description: `${successful.name} has been uploaded and is now available for download.`,
-        });
-      } catch (error) {
-        console.error("Error saving file:", error);
-        toast({
-          title: "Upload Error",
-          description: "File uploaded but failed to save metadata.",
-          variant: "destructive",
-        });
-      }
+      const base64Data = await base64Promise;
+
+      // Upload to server
+      const response = await apiRequest("POST", "/api/files/upload", {
+        filename: file.name,
+        file: base64Data,
+      });
+
+      const data = await response.json();
+
+      // Save file metadata
+      await apiRequest("POST", "/api/files", {
+        fileURL: data.uploadURL,
+        filename: file.name,
+        fileSize: file.size,
+      });
+
+      // Refresh files list
+      queryClient.invalidateQueries({ queryKey: ["/api/files"] });
+
+      toast({
+        title: "✅ Upload Successful!",
+        description: `${file.name} is now available for sharing`,
+      });
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast({
+        title: "❌ Upload Failed",
+        description: "Could not upload file. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -190,7 +205,7 @@ export default function Home() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     toast({
       title: "Download Started",
       description: `Downloading ${file.filename}...`,
@@ -210,7 +225,7 @@ export default function Home() {
     const now = new Date();
     const updated = new Date(date);
     const diffInMinutes = Math.floor((now.getTime() - updated.getTime()) / (1000 * 60));
-    
+
     if (diffInMinutes === 0) return "Just now";
     if (diffInMinutes === 1) return "1 minute ago";
     return `${diffInMinutes} minutes ago`;
@@ -228,14 +243,14 @@ export default function Home() {
               </div>
               <h1 className="text-xl font-semibold text-slate-900 dark:text-white">CodeSync</h1>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               {/* Sync Status */}
               <Badge variant="outline" className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300">
                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse mr-2"></div>
                 Synced
               </Badge>
-              
+
               {/* Theme Toggle */}
               <Button
                 variant="outline"
@@ -260,10 +275,10 @@ export default function Home() {
               <Info className="text-white" size={12} />
             </div>
             <div>
-              <h2 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">How it works</h2>
+              <h2 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">💡 Quick Start</h2>
               <p className="text-blue-800 dark:text-blue-200 text-sm leading-relaxed">
-                Paste or type your code in the editor below. It will automatically sync across all devices accessing this URL. 
-                Use the copy button to quickly copy the shared code to your clipboard.
+                Type or paste your code below - it instantly syncs across all your devices!
+                Share the URL with others to collaborate in real-time. No sign-up needed.
               </p>
             </div>
           </div>
@@ -274,11 +289,11 @@ export default function Home() {
           <TabsList className="grid w-full grid-cols-2 mb-8">
             <TabsTrigger value="code" className="flex items-center space-x-2">
               <Code size={16} />
-              <span>Code Sharing</span>
+              <span>📝 Code Editor</span>
             </TabsTrigger>
             <TabsTrigger value="files" className="flex items-center space-x-2">
               <FileArchive size={16} />
-              <span>Zip Files</span>
+              <span>📦 File Sharing</span>
             </TabsTrigger>
           </TabsList>
 
@@ -288,15 +303,15 @@ export default function Home() {
               {/* Editor Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
                 <div className="flex items-center space-x-4">
-                  <h3 className="font-medium text-slate-900 dark:text-white">Shared Code</h3>
+                  <h3 className="font-medium text-slate-900 dark:text-white">✨ Live Code Editor</h3>
                   <div className="flex items-center space-x-2 text-sm text-slate-500 dark:text-slate-400">
                     <Clock size={12} />
                     <span data-testid="text-last-updated">
-                      Last updated: {sharedCode ? formatLastUpdated(sharedCode.updatedAt.toString()) : "Never"}
+                      {sharedCode ? formatLastUpdated(sharedCode.updatedAt.toString()) : "Start typing..."}
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   {/* Language Selector */}
                   <Select value={language} onValueChange={setLanguage}>
@@ -313,7 +328,7 @@ export default function Home() {
                       <SelectItem value="json">JSON</SelectItem>
                     </SelectContent>
                   </Select>
-                  
+
                   {/* Copy Button */}
                   <Button onClick={handleCopy} className="bg-blue-600 hover:bg-blue-700" data-testid="button-copy">
                     {copied ? <Check size={16} className="mr-2" /> : <Copy size={16} className="mr-2" />}
@@ -321,17 +336,17 @@ export default function Home() {
                   </Button>
                 </div>
               </div>
-              
+
               {/* Code Textarea */}
               <div className="relative">
                 <Textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  placeholder="Paste or type your code here... It will automatically sync across all connected devices."
+                  placeholder="✍️ Start typing your code here... Changes save automatically in real-time!"
                   className="min-h-96 p-6 bg-transparent text-slate-900 dark:text-slate-100 font-mono text-sm leading-relaxed resize-none border-0 focus-visible:ring-0 placeholder-slate-400 dark:placeholder-slate-500"
                   data-testid="textarea-code"
                 />
-                
+
                 {/* Loading Overlay */}
                 {(isLoading || isFetching) && (
                   <div className="absolute inset-0 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm flex items-center justify-center">
@@ -351,31 +366,23 @@ export default function Home() {
               {/* Upload Section */}
               <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm">
                 <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-medium text-slate-900 dark:text-white">Upload Zip Files</h3>
-                    <Badge variant="outline" className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
-                      <Upload size={12} className="mr-1" />
-                      Up to 50MB
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex items-center space-x-4">
-                    <ObjectUploader
-                      maxNumberOfFiles={1}
-                      maxFileSize={50485760} // 50MB
-                      onGetUploadParameters={handleGetUploadParameters}
-                      onComplete={handleFileUploadComplete}
-                      buttonClassName="bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <Upload size={16} />
-                        <span>Upload Zip File</span>
-                      </div>
-                    </ObjectUploader>
-                    
-                    <div className="text-sm text-slate-500 dark:text-slate-400">
-                      Supported formats: .zip, .tar, .gz, .7z, .rar
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-slate-900 dark:text-white">📤 Upload Files</h3>
+                      <Badge variant="outline" className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
+                        <Upload size={12} className="mr-1" />
+                        Max 50MB
+                      </Badge>
                     </div>
+
+                    <SimpleFileUploader
+                      onUpload={handleFileUpload}
+                      buttonText="Upload File"
+                    />
+
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      💡 Tip: Upload archives (.zip, .tar, .gz, .7z, .rar) to share multiple files at once
+                    </p>
                   </div>
                 </div>
               </Card>
@@ -384,13 +391,13 @@ export default function Home() {
               <Card className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm">
                 <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-medium text-slate-900 dark:text-white">Shared Files</h3>
+                    <h3 className="font-medium text-slate-900 dark:text-white">📁 Your Shared Files</h3>
                     <Badge variant="outline" className="px-3 py-1.5">
-                      {sharedFiles.length} file{sharedFiles.length !== 1 ? 's' : ''}
+                      {sharedFiles.length} {sharedFiles.length === 1 ? 'file' : 'files'}
                     </Badge>
                   </div>
                 </div>
-                
+
                 <div className="p-6">
                   {isLoadingFiles ? (
                     <div className="flex items-center justify-center py-12">
@@ -400,8 +407,8 @@ export default function Home() {
                   ) : sharedFiles.length === 0 ? (
                     <div className="text-center py-12">
                       <FileArchive className="w-12 h-12 mx-auto text-slate-400 dark:text-slate-500 mb-4" />
-                      <p className="text-slate-600 dark:text-slate-400 mb-2">No files shared yet</p>
-                      <p className="text-sm text-slate-500 dark:text-slate-500">Upload a zip file to get started</p>
+                      <p className="text-slate-600 dark:text-slate-400 mb-2 font-medium">No files yet</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-500">Upload your first file to start sharing!</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -423,7 +430,7 @@ export default function Home() {
                               </div>
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center space-x-2 ml-4">
                             <Button
                               variant="outline"
@@ -470,7 +477,7 @@ export default function Home() {
               <span data-testid="text-device-count">Auto-sync enabled</span>
             </div>
           </div>
-          
+
           {/* Manual Refresh */}
           <Button variant="ghost" size="sm" onClick={handleRefresh} data-testid="button-refresh">
             <RefreshCw size={12} className="mr-2" />
@@ -484,29 +491,29 @@ export default function Home() {
             <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mb-4">
               <Zap className="text-blue-600 dark:text-blue-400" size={20} />
             </div>
-            <h3 className="font-semibold text-slate-900 dark:text-white mb-2">Real-time Sync</h3>
+            <h3 className="font-semibold text-slate-900 dark:text-white mb-2">⚡ Instant Sync</h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              Changes appear instantly across all connected devices. No need to manually refresh or reload.
+              Type once, see everywhere. Your changes appear instantly on all connected devices.
             </p>
           </Card>
-          
+
           <Card className="p-6">
             <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center mb-4">
               <Smartphone className="text-emerald-600 dark:text-emerald-400" size={20} />
             </div>
-            <h3 className="font-semibold text-slate-900 dark:text-white mb-2">Cross-platform</h3>
+            <h3 className="font-semibold text-slate-900 dark:text-white mb-2">📱 Works Everywhere</h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              Works seamlessly on desktop, tablet, and mobile devices. Share code between any platform.
+              Desktop, tablet, or mobile - share code seamlessly across all your devices.
             </p>
           </Card>
-          
+
           <Card className="p-6">
             <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mb-4">
               <Shield className="text-purple-600 dark:text-purple-400" size={20} />
             </div>
-            <h3 className="font-semibold text-slate-900 dark:text-white mb-2">Secure Sharing</h3>
+            <h3 className="font-semibold text-slate-900 dark:text-white mb-2">🔒 Simple & Secure</h3>
             <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              Your code is stored securely and only accessible via the unique URL. No account required.
+              No login needed. Just share the URL. Your code stays private and secure.
             </p>
           </Card>
         </div>

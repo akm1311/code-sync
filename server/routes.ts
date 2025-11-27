@@ -55,17 +55,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Upload file - get upload URL
+  // Upload file - direct upload
   app.post("/api/files/upload", async (req, res) => {
     try {
+      const { filename, file } = req.body;
+
+      if (!filename || !file) {
+        return res.status(400).json({ error: "filename and file (base64) are required" });
+      }
+
       const objectStorageService = new ObjectStorageService();
-      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-      res.json({ uploadURL });
+
+      // Convert base64 to buffer
+      const fileBuffer = Buffer.from(file, 'base64');
+
+      // Upload to Vercel Blob
+      const { url, pathname } = await objectStorageService.uploadFile(filename, fileBuffer);
+
+      res.json({
+        uploadURL: url,
+        pathname: pathname
+      });
     } catch (error) {
-      console.error("Error getting upload URL:", error);
-      res.status(500).json({ message: "Failed to get upload URL" });
+      console.error("Error uploading file:", error);
+      res.status(500).json({ message: "Failed to upload file" });
     }
   });
+
 
   // Save file metadata after upload
   app.post("/api/files", async (req, res) => {
@@ -75,13 +91,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const objectStorageService = new ObjectStorageService();
-      const objectPath = objectStorageService.normalizeObjectEntityPath(req.body.fileURL);
-      
-      // Set ACL policy for public access
-      await objectStorageService.trySetObjectEntityAclPolicy(req.body.fileURL, {
-        owner: "anonymous",
-        visibility: "public",
-      });
+      const objectPath = req.body.fileURL;
 
       const validatedData = insertSharedFileSchema.parse({
         filename: req.body.filename,
@@ -101,8 +111,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/objects/:objectPath(*)", async (req, res) => {
     const objectStorageService = new ObjectStorageService();
     try {
-      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
-      objectStorageService.downloadObject(objectFile, res);
+      // Get the file metadata from storage
+      const files = await storage.getSharedFiles();
+      const requestedPath = `/objects/${req.params.objectPath}`;
+      const file = files.find(f => f.objectPath === requestedPath || f.objectPath.endsWith(req.params.objectPath));
+
+      if (!file) {
+        return res.sendStatus(404);
+      }
+
+      // Download from Vercel Blob
+      await objectStorageService.downloadObject(file.objectPath, res);
     } catch (error) {
       console.error("Error downloading file:", error);
       if (error instanceof ObjectNotFoundError) {
@@ -111,6 +130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.sendStatus(500);
     }
   });
+
 
   // Delete shared file
   app.delete("/api/files/:id", async (req, res) => {

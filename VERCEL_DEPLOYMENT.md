@@ -14,98 +14,6 @@ This application has been optimized for Vercel deployment with:
 ## Prerequisites
 
 1. **Vercel Account**: Sign up at [vercel.com](https://vercel.com)
-2. **GitHub/GitLab/Bitbucket**: Your code should be in a Git repository
-3. **Database**: Have your Neon database connection string ready
-4. **Google Cloud**: Set up a GCS bucket and service account credentials
-
-## Environment Variables
-
-Before deploying, you'll need to configure these environment variables in Vercel:
-
-### Required Variables
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DATABASE_URL` | Neon PostgreSQL connection string | `postgresql://user:pass@host.neon.tech/dbname` |
-| `GOOGLE_CLOUD_PROJECT_ID` | Your GCP project ID | `my-project-12345` |
-| `GOOGLE_CLOUD_STORAGE_BUCKET` | GCS bucket name | `my-app-storage` |
-| `GOOGLE_CLOUD_CREDENTIALS` | Service account JSON credentials | `{"type":"service_account",...}` |
-| `NODE_ENV` | Environment mode | `production` |
-
-### How to Add Environment Variables in Vercel
-
-1. Go to your project in Vercel Dashboard
-2. Navigate to **Settings** → **Environment Variables**
-3. Add each variable with its value
-4. Select the environment(s): Production, Preview, Development
-5. Click **Save**
-
-> **Important**: For `GOOGLE_CLOUD_CREDENTIALS`, paste the entire JSON content as a single-line string or use Vercel's secret management.
-
-## Deployment Steps
-
-### Option 1: Deploy via Vercel Dashboard (Recommended)
-
-1. **Push your code to Git**
-   ```bash
-   git add .
-   git commit -m "Prepare for Vercel deployment"
-   git push origin main
-   ```
-
-2. **Import Project**
-   - Go to [vercel.com/new](https://vercel.com/new)
-   - Click "Import Project"
-   - Select your Git repository
-   - Vercel will auto-detect settings
-
-3. **Configure Build Settings**
-   - **Framework Preset**: Other
-   - **Build Command**: `npm run build` (auto-detected from `vercel-build` script)
-   - **Output Directory**: `dist/public` (auto-detected from `vercel.json`)
-   - **Install Command**: `npm install`
-
-4. **Add Environment Variables**
-   - Add all required environment variables listed above
-
-5. **Deploy**
-   - Click "Deploy"
-   - Vercel will build and deploy your application
-
-### Option 2: Deploy via Vercel CLI
-
-1. **Install Vercel CLI**
-   ```bash
-   npm i -g vercel
-   ```
-
-2. **Login to Vercel**
-   ```bash
-   vercel login
-   ```
-
-3. **Deploy**
-   ```bash
-   vercel
-   ```
-   - Follow the prompts
-   - Link to existing project or create new one
-   - Confirm settings
-
-4. **Add Environment Variables**
-   ```bash
-   vercel env add DATABASE_URL production
-   vercel env add GOOGLE_CLOUD_PROJECT_ID production
-   vercel env add GOOGLE_CLOUD_STORAGE_BUCKET production
-   vercel env add GOOGLE_CLOUD_CREDENTIALS production
-   vercel env add NODE_ENV production
-   ```
-
-5. **Deploy to Production**
-   ```bash
-   vercel --prod
-   ```
-
 ## Database Setup
 
 ### Initialize Database Schema
@@ -214,14 +122,15 @@ The development server runs the full Express app with Vite HMR.
 - Check Neon database is accessible (not paused)
 - Ensure connection string includes `?sslmode=require`
 
-### Google Cloud Storage Issues
+### File Storage Issues
 
 **Issue**: File upload/download fails
-- **Solution**: Verify GCS credentials are correctly formatted (single-line JSON)
-- Check bucket permissions and CORS configuration
-- Ensure service account has proper IAM roles
+- **Solution**: Ensure `BLOB_READ_WRITE_TOKEN` is set (Vercel sets this automatically)
+- Check file size limits (Vercel Blob free tier: 1GB total)
+- For larger files, consider upgrading Vercel Blob plan
 
 ### SPA Routing Issues
+
 
 **Issue**: 404 on page refresh
 - **Solution**: Verify `vercel.json` has catch-all rewrite to `/index.html`

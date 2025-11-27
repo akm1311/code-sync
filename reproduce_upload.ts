@@ -27,8 +27,27 @@ async function testUpload() {
 
         const data = await response.json();
         console.log('Upload successful!', data);
+
+        // Save metadata
+        console.log('Saving metadata...');
+        const metaResponse = await fetch('http://localhost:5000/api/files', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fileURL: data.uploadURL,
+                filename: filename,
+                fileSize: 1024 // Dummy size
+            })
+        });
+
+        if (!metaResponse.ok) {
+            throw new Error(`Metadata save failed: ${metaResponse.status}`);
+        }
+        console.log('Metadata saved!');
+
     } catch (error) {
         console.error('Error uploading file:', error);
+        fs.writeFileSync('error.log', JSON.stringify(error, null, 2) + '\n' + (error instanceof Error ? error.stack : String(error)));
     }
 }
 

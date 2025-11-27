@@ -55,6 +55,7 @@ export class ObjectStorageService {
     const blob = await put(filename, fileBuffer, {
       access: 'public',
       token: process.env.BLOB_READ_WRITE_TOKEN,
+      addRandomSuffix: true,
     });
 
     return {

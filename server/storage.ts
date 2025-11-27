@@ -107,7 +107,7 @@ export class MemStorage implements IStorage {
 }
 
 // Blob-based Storage Implementation for Vercel (no database needed!)
-import { put, head, del } from '@vercel/blob';
+import { put, head, del, list } from '@vercel/blob';
 
 export class BlobStorage implements IStorage {
   private readonly SHARED_CODE_KEY = 'shared-code.json';
@@ -120,34 +120,65 @@ export class BlobStorage implements IStorage {
         return defaultValue;
       }
 
-      const response = await fetch(`https://blob.vercel-storage.com/${key}`, {
-        headers: {
-          'authorization': `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
-        },
+      const { blobs } = await list({
+        prefix: key,
+        limit: 1,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
       });
+
+      if (blobs.length === 0) {
+        return defaultValue;
+      }
+
+      const response = await fetch(blobs[0].url);
 
       if (!response.ok) {
         return defaultValue;
       }
 
       return await response.json();
-    } catch {
+    } catch (error) {
+      console.error(`Error reading blob ${key}:`, error);
       return defaultValue;
     }
   }
 
   private async writeBlobJSON<T>(key: string, data: T): Promise<void> {
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      console.log('Skipping writeBlobJSON (no token)');
       return; // Local dev - skip writing
     }
 
-    const jsonString = JSON.stringify(data);
-    const blob = new Blob([jsonString], { type: 'application/json' });
+    console.log(`Writing blob ${key}...`);
+    try {
+      // Delete existing blob first to ensure overwrite works
+      const { blobs } = await list({
+        prefix: key,
+        limit: 1,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
 
-    await put(key, blob, {
-      access: 'public',
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-    });
+      if (blobs.length > 0) {
+        console.log(`Deleting existing blob(s) for ${key}...`);
+        await del(blobs.map(b => b.url), {
+          token: process.env.BLOB_READ_WRITE_TOKEN,
+        });
+      }
+
+      const jsonString = JSON.stringify(data);
+      // const blob = new Blob([jsonString], { type: 'application/json' }); // Node.js < 18 might not have Blob, use string directly
+
+      await put(key, jsonString, {
+        access: 'public',
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+        addRandomSuffix: false, // Important: overwrite the file (though we just deleted it)
+        contentType: 'application/json',
+      });
+      console.log(`Successfully wrote blob ${key}`);
+    } catch (error) {
+      console.error(`Error writing blob ${key}:`, error);
+      throw error;
+    }
   }
 
   async getUser(id: string): Promise<User | undefined> {

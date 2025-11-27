@@ -146,6 +146,8 @@ export default function Home() {
         const blob = await upload(file.name, file, {
           access: 'public',
           handleUploadUrl: '/api/upload/token',
+          // @ts-ignore - Option exists in API but missing in type definition
+          addRandomSuffix: true, // Ensure unique filename to avoid "Blob already exists" error
         });
         uploadURL = blob.url;
         pathname = blob.pathname;
@@ -192,9 +194,7 @@ export default function Home() {
       console.error("Upload error:", error);
       toast({
         title: "❌ Upload Failed",
-        description: error instanceof Error && error.message.includes("413")
-          ? "File too large. Please upload files smaller than 50MB."
-          : "Could not upload file. Please try again.",
+        description: error instanceof Error ? error.message : "Could not upload file",
         variant: "destructive",
       });
     }
@@ -227,7 +227,9 @@ export default function Home() {
   };
 
   const handleDownloadFile = (file: SharedFile) => {
-    const downloadUrl = `${window.location.origin}${file.objectPath}`;
+    const downloadUrl = file.objectPath.startsWith('http')
+      ? file.objectPath
+      : `${window.location.origin}${file.objectPath}`;
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = file.filename;

@@ -72,9 +72,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         body,
         request: req,
         onBeforeGenerateToken: async (pathname, clientPayload) => {
-          // You can add authentication checks here
+          // Allow all content types by not restricting them
           return {
-            allowedContentTypes: ['image/jpeg', 'image/png', 'image/gif', 'text/plain', 'application/pdf', 'application/zip', 'application/x-zip-compressed', 'multipart/x-zip'], // We can be more permissive or specific
             tokenPayload: JSON.stringify({
               // optional, sent to your server on upload completion
             }),
@@ -153,8 +152,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Get the file metadata from storage
       const files = await storage.getSharedFiles();
-      const requestedPath = `/ objects / ${req.params.objectPath} `;
-      const file = files.find(f => f.objectPath === requestedPath || f.objectPath.endsWith(req.params.objectPath));
+      // Fix: Remove spaces and handle potential leading slashes
+      const requestedPath = req.params.objectPath;
+
+      // Find file by matching objectPath or ending with it
+      const file = files.find(f =>
+        f.objectPath === requestedPath ||
+        f.objectPath.endsWith(requestedPath) ||
+        f.objectPath === `/objects/${requestedPath}`
+      );
 
       if (!file) {
         return res.sendStatus(404);
@@ -175,6 +181,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete shared file
   app.delete("/api/files/:id", async (req, res) => {
     try {
+      // Get file info first to delete the blob
+      const files = await storage.getSharedFiles();
+      const file = files.find(f => f.id === req.params.id);
+
+      if (file && process.env.BLOB_READ_WRITE_TOKEN) {
+        try {
+          // Delete from Vercel Blob
+          const objectStorageService = new ObjectStorageService();
+          await objectStorageService.deleteFile(file.objectPath);
+        } catch (e) {
+          console.error("Error deleting blob:", e);
+          // Continue to delete metadata even if blob deletion fails (might be already gone)
+        }
+      }
+
       const deleted = await storage.deleteSharedFile(req.params.id);
       if (deleted) {
         res.json({ message: "File deleted successfully" });

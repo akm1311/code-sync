@@ -1,11 +1,11 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage } from "./storage.js";
 import { updateSharedCodeSchema, insertSharedFileSchema } from "@shared/schema";
 import {
   ObjectStorageService,
   ObjectNotFoundError,
-} from "./objectStorage";
+} from "./objectStorage.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get shared code

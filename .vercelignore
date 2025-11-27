@@ -1,0 +1,34 @@
+# Python files (not used in Vercel deployment)
+*.py
+__pycache__/
+*.pyc
+
+# Development files
+.local/
+.replit
+replit.nix
+.env
+.env.local
+
+# Documentation
+replit.md
+
+# Build artifacts
+node_modules/
+.turbo/
+.cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript build info
+*.tsbuildinfo

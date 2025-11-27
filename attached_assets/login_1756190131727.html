@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Login - Bank Management System</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-university"></i>
+                <span>Bank Management System</span>
+            </div>
+            <div class="nav-menu" id="navMenu">
+                <a href="index.html" class="nav-link" data-testid="nav-home">
+                    <i class="fas fa-home"></i> Home
+                </a>
+                <a href="register.html" class="nav-link" data-testid="nav-register">
+                    <i class="fas fa-user-plus"></i> Register
+                </a>
+                <a href="login.html" class="nav-link active" data-testid="nav-login">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </a>
+            </div>
+            <div class="nav-toggle" id="navToggle" data-testid="nav-mobile-toggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="form-container">
+            <div class="form-header">
+                <i class="fas fa-sign-in-alt"></i>
+                <h2>Employee Login</h2>
+                <p>Access your employee dashboard</p>
+            </div>
+
+            <form id="loginForm" class="form">
+                <div class="form-group">
+                    <input type="text" id="employeeId" name="employeeId" required maxlength="10" data-testid="input-employeeId">
+                    <label for="employeeId">Employee ID (Maximum 10 characters) *</label>
+                </div>
+
+                <div class="form-group">
+                    <input type="password" id="password" name="password" required maxlength="30" data-testid="input-password">
+                    <label for="password">Password *</label>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full" data-testid="button-login">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Login
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <!-- Modal -->
+    <div id="modal" class="modal" data-testid="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-icon" id="modalIcon"></div>
+            <h3 id="modalTitle" data-testid="modal-title"></h3>
+            <p id="modalMessage" data-testid="modal-message"></p>
+            <button id="modalClose" class="btn btn-primary" data-testid="button-modal-close">OK</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Management System</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-university"></i>
+                <span>Bank Management System</span>
+            </div>
+            <div class="nav-menu" id="navMenu">
+                <a href="index.html" class="nav-link" data-testid="nav-home">
+                    <i class="fas fa-home"></i> Home
+                </a>
+                <a href="register.html" class="nav-link" data-testid="nav-register">
+                    <i class="fas fa-user-plus"></i> Register
+                </a>
+                <a href="login.html" class="nav-link" data-testid="nav-login">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </a>
+            </div>
+            <div class="nav-toggle" id="navToggle" data-testid="nav-mobile-toggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="hero-section">
+            <h1>Welcome to Bank Management System</h1>
+            <p>Comprehensive employee management system for banking operations. Access all modules from the navigation menu above.</p>
+        </div>
+
+        <div class="modules-grid">
+            <div class="module-card">
+                <div class="module-icon bg-blue">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <h3>Employee Registration</h3>
+                <p>Register new employees with secure validation</p>
+                <a href="register.html" class="btn btn-primary" data-testid="button-access-registration">
+                    Access Module
+                </a>
+            </div>
+
+            <div class="module-card">
+                <div class="module-icon bg-green">
+                    <i class="fas fa-sign-in-alt"></i>
+                </div>
+                <h3>Employee Login</h3>
+                <p>Secure login for registered employees</p>
+                <a href="login.html" class="btn btn-primary" data-testid="button-access-login">
+                    Access Module
+                </a>
+            </div>
+
+            <div class="module-card">
+                <div class="module-icon bg-purple">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h3>Customer Management</h3>
+                <p>Create, edit, and delete customer records</p>
+                <a href="customer-management.html" class="btn btn-primary" data-testid="button-access-customers">
+                    Access Module
+                </a>
+            </div>
+
+            <div class="module-card">
+                <div class="module-icon bg-orange">
+                    <i class="fas fa-exchange-alt"></i>
+                </div>
+                <h3>Transaction Processing</h3>
+                <p>Process and manage customer transactions</p>
+                <a href="transaction-processing.html" class="btn btn-primary" data-testid="button-access-transactions">
+                    Access Module
+                </a>
+            </div>
+
+            <div class="module-card">
+                <div class="module-icon bg-red">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <h3>Loan Management</h3>
+                <p>Initiate, update, and cancel loan requests</p>
+                <a href="loan-management.html" class="btn btn-primary" data-testid="button-access-loans">
+                    Access Module
+                </a>
+            </div>
+
+            <div class="module-card">
+                <div class="module-icon bg-indigo">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <h3>System Status</h3>
+                <p>All modules operational and ready</p>
+                <div class="status-indicator" data-testid="text-status">
+                    <i class="fas fa-check-circle"></i> Online
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>

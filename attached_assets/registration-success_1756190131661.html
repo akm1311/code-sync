@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration Success - Bank Management System</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-university"></i>
+                <span>Bank Management System</span>
+            </div>
+            <div class="nav-menu" id="navMenu">
+                <a href="index.html" class="nav-link" data-testid="nav-home">
+                    <i class="fas fa-home"></i> Home
+                </a>
+                <a href="register.html" class="nav-link" data-testid="nav-register">
+                    <i class="fas fa-user-plus"></i> Register
+                </a>
+                <a href="login.html" class="nav-link" data-testid="nav-login">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </a>
+            </div>
+            <div class="nav-toggle" id="navToggle" data-testid="nav-mobile-toggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="success-container">
+            <div class="success-icon">
+                <i class="fas fa-check"></i>
+            </div>
+            <h2>Employee Registration Successful</h2>
+            <div class="employee-details" id="employeeDetails">
+                <p><strong>Employee ID:</strong> <span id="employeeId" data-testid="text-employeeId"></span></p>
+                <p><strong>First Name:</strong> <span id="firstName" data-testid="text-name"></span></p>
+                <p><strong>Last Name:</strong> <span id="lastName"></span></p>
+                <p><strong>Email:</strong> <span id="email" data-testid="text-email"></span></p>
+            </div>
+            <a href="index.html" class="btn btn-primary" data-testid="button-back-home">
+                <i class="fas fa-home"></i>
+                Back to Home
+            </a>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
